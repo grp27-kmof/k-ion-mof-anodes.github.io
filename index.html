@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>K-Ion MOF Anodes: Computational Design and Generation</title>
+<meta name="description" content="Computational design and generation of high-performance metal–organic framework (MOF) anodes for potassium-ion batteries: validation pipeline, MOFDiff and EGMOF generative models, and the best generated candidate.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#a51140" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#151011" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="website">
+<meta property="og:title" content="K-Ion MOF Anodes: Computational Design and Generation">
+<meta property="og:description" content="Computational design and generation of high-performance metal–organic framework (MOF) anodes for potassium-ion batteries: validation pipeline, MOFDiff and EGMOF generative models, and the best generated candidate.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="K-Ion MOF Anodes: Computational Design and Generation">
+<meta name="twitter:description" content="Computational design and generation of high-performance metal–organic framework (MOF) anodes for potassium-ion batteries: validation pipeline, MOFDiff and EGMOF generative models, and the best generated candidate.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23a51140'/%3E%3Ctext x='16' y='22' font-family='Arial' font-weight='700' font-size='15' text-anchor='middle' fill='white'%3EK%E2%81%BA%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+/* Layout: one scrolling page. Sticky mini-nav, hero with the funnel as the main visual, then pipeline, criteria, best candidate, generation, team. */
+:root {
+  --bg: #fbf9f9;
+  --surface: #ffffff;
+  --fg: #221719;
+  --muted: #6f5f62;
+  --line: #e6dcde;
+  --accent: #a51140;
+  --accent-soft: #f6e3e9;
+  --ok: #2f7d5b;
+  --warn: #b7791f;
+  --pend: #6b7280;
+  --font-display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151011; --surface: #1e1718; --fg: #f2e9ea; --muted: #b0a0a3; --line: #3a2d30;
+    --accent: #e0496f; --accent-soft: #36202a; --ok: #5cc596; --warn: #e0a84a; --pend: #9aa0aa;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151011; --surface: #1e1718; --fg: #f2e9ea; --muted: #b0a0a3; --line: #3a2d30;
+  --accent: #e0496f; --accent-soft: #36202a; --ok: #5cc596; --warn: #e0a84a; --pend: #9aa0aa;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 56px;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); background: var(--bg); z-index: 10; }
+.wrap { max-width: 1040px; margin: 0 auto; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+section { padding-top: 64px; scroll-margin-top: 56px; }
+h2 { font-size: clamp(1.5rem, 3vw, 2rem); margin-bottom: 20px; }
+.label { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+/* nav */
+nav {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 11;
+  background: var(--bg); border-bottom: 1px solid var(--line);
+  margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+  padding-inline: max(16px, env(safe-area-inset-left, 0px));
+}
+nav .wrap { display: flex; gap: 20px; align-items: center; overflow-x: auto; height: 48px; white-space: nowrap; }
+nav a { color: var(--muted); text-decoration: none; font-size: 0.875rem; }
+nav a:hover, nav a:focus-visible { color: var(--accent); }
+nav .brand { color: var(--accent); font-family: var(--font-display); font-weight: 700; margin-right: auto; }
+
+/* hero */
+.hero { padding-top: 56px; }
+.hero > .label, .hero h1, .hero .summary { text-align: center; margin-inline: auto; }
+.hero h1 { font-size: clamp(1.75rem, 4.2vw, 2.9rem); line-height: 1.1; max-width: 26ch; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.meta { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 6px 20px; color: var(--muted); font-size: 0.875rem; }
+
+.summary { margin: 18px 0 0; max-width: 66ch; color: var(--muted); font-size: 1.0625rem; }
+
+/* funnel */
+.funnel { margin-top: 40px; display: grid; gap: 10px; }
+.frow { display: grid; grid-template-columns: minmax(96px, 150px) 1fr; gap: 12px; align-items: center; }
+.frow .name { font-size: 0.8125rem; color: var(--muted); }
+.fbar { position: relative; height: 34px; background: var(--accent-soft); border-radius: 3px; }
+.fbar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 3px; }
+.fbar b { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-family: var(--font-mono); font-weight: 500; font-size: 0.875rem; color: #fff; white-space: nowrap; }
+.fbar.thin b { color: var(--fg); left: calc(var(--w) + 10px); }
+.status { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { font-size: 0.8125rem; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); display: inline-flex; gap: 8px; align-items: center; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+.dot.run { background: var(--warn); }
+
+/* pipeline */
+.phase { margin-bottom: 28px; }
+.phase > .label { margin-bottom: 10px; display: block; }
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.step { background: var(--surface); border: 1px solid var(--line); padding: 14px; min-width: 0; position: relative; }
+.step .n { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); }
+.step h3 { font-size: 1rem; margin: 4px 0 6px; }
+.step .tool { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); }
+.step .key { margin-top: 10px; font-family: var(--font-mono); font-size: 0.75rem; border-top: 1px solid var(--line); padding-top: 8px; color: var(--fg); }
+.flow { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 22px; }
+.flow .step { border-top: 3px solid var(--accent); }
+.flow .step:not(:last-child)::after { content: "→"; position: absolute; right: -19px; top: 50%; transform: translateY(-50%); color: var(--accent); font-family: var(--font-mono); font-size: 1rem; }
+.loop { display: flex; align-items: center; gap: 12px; margin: 4px 0 28px; color: var(--accent); font-family: var(--font-mono); font-size: 0.8125rem; }
+.loop::before, .loop::after { content: ""; flex: 1; height: 1px; background: var(--accent); }
+
+/* how generation works */
+.idea { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 28px; }
+.idea .box { background: var(--surface); border: 1px solid var(--line); padding: 16px; min-width: 0; }
+.idea .box h3 { font-size: 1.0625rem; margin-bottom: 6px; }
+.idea .box p { margin: 0; color: var(--muted); font-size: 0.9375rem; }
+.denoise { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 22px; margin: 8px 0 28px; }
+.denoise figure { margin: 0; background: var(--surface); border: 1px solid var(--line); padding: 12px; position: relative; min-width: 0; }
+.denoise figure:not(:last-child)::after { content: "→"; position: absolute; right: -19px; top: 50%; transform: translateY(-50%); color: var(--accent); font-family: var(--font-mono); }
+.denoise svg { width: 100%; height: auto; display: block; color: var(--accent); }
+.denoise figcaption { margin-top: 8px; font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); }
+.explain { display: grid; gap: 0; border: 1px solid var(--line); background: var(--surface); margin-bottom: 28px; }
+.explain .row { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.explain .row:last-child { border-bottom: 0; }
+.explain .num { font-family: var(--font-mono); color: var(--accent); font-weight: 500; }
+.explain b { font-weight: 500; }
+.explain p { margin: 2px 0 0; color: var(--muted); font-size: 0.9375rem; }
+.callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 14px 16px; font-size: 0.9375rem; }
+
+/* lanes */
+.lanes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; align-items: start; }
+.lane { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--accent); min-width: 0; }
+.lane.l3 { border-top-color: var(--warn); }
+.lh { padding: 16px 16px 12px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
+.lh h3 { font-size: 1.25rem; }
+.lh .st { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ok); }
+.lane.l3 .st { color: var(--warn); }
+.lane ol { list-style: none; margin: 0; padding: 14px 16px; counter-reset: s; display: grid; gap: 0; }
+.lane li { counter-increment: s; position: relative; padding: 0 0 14px 40px; display: grid; gap: 1px; min-width: 0; }
+.lane li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-family: var(--font-mono); font-size: 0.75rem; display: grid; place-items: center; }
+.lane li::after { content: ""; position: absolute; left: 12.5px; top: 28px; bottom: 2px; width: 1px; background: var(--line); }
+.lane li:last-child { padding-bottom: 0; }
+.lane li:last-child::after { display: none; }
+.lane li b { font-weight: 500; }
+.lane li .tl { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); }
+.lane li .d { font-size: 0.875rem; color: var(--muted); }
+.loop { margin-top: 24px; }
+
+/* batches */
+.bgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.bcard { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--accent); padding: 16px; display: grid; gap: 10px; min-width: 0; align-content: start; }
+.bcard.pendc { border-top-color: var(--warn); border-style: dashed; border-top-style: solid; }
+.bh { display: grid; gap: 2px; margin-bottom: 4px; }
+.bh h3 { font-size: 1.25rem; }
+.bn { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ok); }
+.pendc .bn { color: var(--warn); }
+.br { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; align-items: center; }
+.bl { font-size: 0.8125rem; color: var(--muted); }
+.bt { position: relative; height: 30px; background: var(--accent-soft); border-radius: 3px; }
+.bt i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 3px; }
+.bt b { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-family: var(--font-mono); font-weight: 500; font-size: 0.875rem; color: #fff; }
+.bt b.mut { color: var(--muted); }
+
+.egf { margin-top: 12px; display: grid; gap: 6px; }
+.er { display: grid; grid-template-columns: 170px minmax(0, 1fr) minmax(0, 220px); gap: 12px; align-items: center; }
+.en { font-size: 0.8125rem; color: var(--muted); }
+.eb { position: relative; height: 26px; background: var(--accent-soft); border-radius: 3px; }
+.eb i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 3px; }
+.eb b { position: absolute; top: 50%; transform: translateY(-50%); left: 8px; font-family: var(--font-mono); font-weight: 500; font-size: 0.8125rem; color: #fff; }
+.er:last-child .eb i { background: var(--ok); }
+.eo { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--muted); overflow-wrap: anywhere; }
+@media (max-width: 720px) { .er { grid-template-columns: 1fr; gap: 3px; margin-bottom: 8px; } }
+
+/* methods details + refs */
+.mdets { margin-top: 10px; display: grid; gap: 8px; }
+.mdet { background: var(--surface); border: 1px solid var(--line); min-width: 0; }
+.mdet summary { cursor: pointer; padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; list-style: none; }
+.mdet summary::-webkit-details-marker { display: none; }
+.mdet summary::before { content: "+"; font-family: var(--font-mono); color: var(--accent); width: 14px; }
+.mdet[open] summary::before { content: "\2212"; }
+.mdet summary b { font-family: var(--font-display); font-size: 1.125rem; font-weight: 600; }
+.mdet .tg { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); }
+.mdet summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.mdet ul { margin: 0; padding: 0 16px 14px 38px; display: grid; gap: 6px; color: var(--muted); font-size: 0.9375rem; }
+.refs { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border: 1px solid var(--line); background: var(--surface); counter-reset: r; }
+.refs li { counter-increment: r; padding: 12px 16px 12px 52px; border-bottom: 1px solid var(--line); position: relative; display: grid; gap: 2px; min-width: 0; }
+.refs li:last-child { border-bottom: 0; }
+.refs li::before { content: counter(r); position: absolute; left: 16px; top: 12px; font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); }
+.refs a { color: var(--fg); text-decoration-color: var(--accent); text-underline-offset: 3px; overflow-wrap: anywhere; }
+.refs a:hover { color: var(--accent); }
+.refs span { font-size: 0.8125rem; color: var(--muted); }
+
+/* criteria table */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 0.9375rem; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+th { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+tr:last-child td { border-bottom: 0; }
+td.p { font-weight: 500; }
+td.v, td.i { font-family: var(--font-mono); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+td.s { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); }
+
+/* candidate */
+.cand { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.id { background: var(--accent); color: #fff; padding: 22px; }
+:root[data-theme="dark"] .id { color: #1a0d11; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .id { color: #1a0d11; } }
+.id .label { color: inherit; opacity: 0.8; }
+.id .f { font-family: var(--font-display); font-weight: 700; font-size: 1.75rem; line-height: 1.15; margin: 10px 0 14px; overflow-wrap: anywhere; }
+.id { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: center; }
+@media (min-width: 820px) { .id { grid-template-columns: auto minmax(0, 1fr); gap: 32px; } }
+.id .f { margin: 6px 0 0; }
+.id dl { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px 20px; font-size: 0.875rem; }
+.id dl > div { min-width: 0; }
+.id dt { opacity: 0.8; font-size: 0.75rem; }
+.id dd { margin: 2px 0 0; font-family: var(--font-mono); overflow-wrap: anywhere; }
+.checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.chk { background: var(--surface); border: 1px solid var(--line); padding: 10px 12px; display: grid; gap: 2px; min-width: 0; }
+.chk .k { font-size: 0.8125rem; color: var(--muted); }
+.chk .val { font-family: var(--font-mono); font-size: 1rem; font-variant-numeric: tabular-nums; }
+.chk .tag { font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.06em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px; }
+.chk .tag::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.chk.ok .tag { color: var(--ok); }
+.chk.chk-warn .tag { color: var(--warn); }
+.chk.pend .tag { color: var(--pend); }
+.chk.pend { border-style: dashed; }
+.legend { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.8125rem; color: var(--muted); }
+
+.cg { margin-bottom: 20px; }
+.cg .checks { margin-top: 8px; }
+
+/* generation */
+.gen { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: end; }
+.gcol { display: grid; gap: 8px; }
+.gbar { background: var(--accent); min-height: 4px; }
+.gbar.soft { background: var(--accent-soft); }
+.gnum { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.5rem, 4vw, 2.25rem); line-height: 1; }
+.gl { font-size: 0.8125rem; color: var(--muted); }
+.gtrack { display: flex; align-items: flex-end; height: 140px; }
+.gtrack .gbar { width: 100%; }
+.metals { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 8px; }
+.metals .pill b { font-family: var(--font-mono); font-weight: 500; }
+.sub { margin-top: 12px; color: var(--muted); font-size: 0.9375rem; max-width: 60ch; }
+
+/* team */
+.team { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.person { background: var(--surface); border: 1px solid var(--line); padding: 14px; }
+.person b { display: block; font-weight: 500; }
+.person span { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); }
+.guides { margin-top: 20px; display: grid; gap: 4px; font-size: 0.9375rem; }
+.guides span { color: var(--muted); }
+
+footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.8125rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 520px) {
+  .frow { grid-template-columns: 1fr; gap: 4px; }
+  .gtrack { height: 100px; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* production additions */
+.skip{position:absolute;left:-9999px;top:8px;background:var(--accent);color:#fff;padding:8px 14px;z-index:100;border-radius:3px;text-decoration:none}
+.skip:focus{left:8px}
+nav a.active{color:var(--accent);font-weight:500}
+nav a.brand{text-decoration:none}
+nav .wrap{scrollbar-width:thin}
+.tablewrap:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:640px){.flow .step:not(:last-child)::after,.denoise figure:not(:last-child)::after{display:none}}
+@media print{
+  nav,.skip{display:none!important}
+  body{background:#fff;color:#000;padding:0}
+  :root{--bg:#fff;--surface:#fff;--fg:#000;--muted:#444;--line:#ccc}
+  section{padding-top:28px;break-inside:auto}
+  .step,.chk,.bcard,.lane,.mdet,.person,.cg{break-inside:avoid}
+  .refs a::after{content:" (" attr(href) ")";font-size:.75rem;color:#444;overflow-wrap:anywhere}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#top">Skip to content</a>
+<nav aria-label="Sections">
+  <div class="wrap">
+    <a class="brand" href="#top">K-Ion MOF</a>
+    <a href="#pipeline">Pipeline</a>
+    <a href="#methods">Methods</a>
+    <a href="#criteria">Criteria</a>
+    <a href="#candidate">Candidate</a>
+    <a href="#generation">Generation</a>
+    <a href="#progress">Progress</a>
+    <a href="#references">References</a>
+    <a href="#team">Team</a>
+  </div>
+</nav>
+
+<main class="wrap" id="top">
+
+  <header class="hero" id="hero">
+    <div class="label">23CSE498 · Team 27 · Amrita Vishwa Vidyapeetham</div>
+    <h1 style="margin-top:14px">Computational Design and Generation of High-Performance <em>MOF Anodes</em> for K-Ion Batteries</h1>
+    <div class="label" style="margin-top:28px;text-align:center;color:var(--accent)">Executive summary</div>
+    <p class="summary" style="margin-top:8px">Potassium-ion batteries are a low-cost alternative to lithium-ion, but potassium’s large ionic radius rules out anodes like graphite. MOFs have tunable pores, yet millions of metal–linker combinations cannot be tested by hand. We built a validation pipeline and two generative models, MOFDiff and EGMOF, to find MOF anodes for K-ion batteries. So far, three generated batches have been validated, and one EGMOF candidate has passed every stage, with DFT running.</p>
+
+    <div class="funnel" role="img" aria-label="Screening funnel: 609 thousand structures, 300 thousand filtered, about 4,000 through CHGNet, about 65 through MACE, then DFT">
+      <div class="frow"><span class="name">Public databases</span><div class="fbar"><i style="width:100%"></i><b>≈609,000</b></div></div>
+      <div class="frow"><span class="name">Filtered</span><div class="fbar"><i style="width:50%"></i><b>≈300,000</b></div></div>
+      <div class="frow"><span class="name">CHGNet</span><div class="fbar thin" style="--w:6%"><i style="width:6%"></i><b>≈4,000</b></div></div>
+      <div class="frow"><span class="name">MACE</span><div class="fbar thin" style="--w:2%"><i style="width:2%"></i><b>≈65</b></div></div>
+      <div class="frow"><span class="name">DFT</span><div class="fbar thin" style="--w:1%"><i style="width:1%"></i><b>top candidates</b></div></div>
+    </div>
+
+    <div class="status">
+      <span class="pill"><span class="dot"></span>Validation pipeline running</span>
+      <span class="pill"><span class="dot"></span>All modules functional</span>
+      <span class="pill"><span class="dot"></span>MOFDiff: 2 batches, EGMOF: 1 batch</span>
+      <span class="pill"><span class="dot run"></span>EGMOF retraining</span>
+    </div>
+  </header>
+
+    <section id="pipeline">
+    <h2>Pipeline</h2>
+    <div class="lanes"><div class="lane l1"><div class="lh"><span class="label">Phase 1</span><h3>Validate</h3><span class="st">functional</span></div><ol><li><b>Clean CIF</b><span class="tl">Python</span><span class="d">remove solvent and guest molecules</span></li><li><b>Geometry</b><span class="tl">Zeo++</span><span class="d">PLD, LCD, void fraction</span></li><li><b>Stability</b><span class="tl">ALIGNN</span><span class="d">formation energy &lt; 0</span></li><li><b>Capacity</b><span class="tl">Faraday</span><span class="d">theoretical mAh/g</span></li><li><b>Binding</b><span class="tl">CHGNet</span><span class="d">K adsorption energy</span></li><li><b>Dynamics</b><span class="tl">CHGNet MD</span><span class="d">MSD, MSI, bonds kept</span></li><li><b>Transport</b><span class="tl">MACE</span><span class="d">diffusion coefficient D, conductivity σ</span></li><li><b>Barrier</b><span class="tl">CI-NEB</span><span class="d">K migration energy</span></li><li><b>DFT</b><span class="tl">CP2K</span><span class="d">E<sub>hull</sub>, OCV, ΔV, DOS, Bader</span></li><li><b>Rank</b><span class="tl"></span><span class="d">shortlist of best MOFs</span></li></ol></div><div class="lane l2"><div class="lh"><span class="label">Phase 2</span><h3>MOFDiff generate</h3><span class="st">2 batches done</span></div><ol><li><b>Preprocess</b><span class="tl">MOFid → LMDB</span><span class="d">split every MOF into nodes and linkers</span></li><li><b>Coarse-grain</b><span class="tl"></span><span class="d">each node and linker becomes one bead</span></li><li><b>Encode</b><span class="tl">building-block encoder</span><span class="d">each block becomes a vector</span></li><li><b>Train</b><span class="tl">diffusion model</span><span class="d">learn bead positions and cell</span></li><li><b>Sample</b><span class="tl">noise → structure</span><span class="d">random beads cleaned step by step</span></li><li><b>Snap</b><span class="tl">KD-tree</span><span class="d">bead → closest real building block</span></li><li><b>Assemble</b><span class="tl">assemble.py</span><span class="d">connect blocks into an atomic CIF</span></li><li><b>Relax</b><span class="tl">UFF + Zeo++</span><span class="d">settle atoms, measure pores</span></li><li><b>Validate</b><span class="tl">→ Phase 1</span><span class="d">same filters as database MOFs</span></li></ol></div><div class="lane l3"><div class="lh"><span class="label">Phase 2</span><h3>EGMOF generate</h3><span class="st">retraining</span></div><ol><li><b>Preprocess</b><span class="tl">MOFid + descriptors</span><span class="d">prepare training pairs</span></li><li><b>Retrain</b><span class="tl">diffusion + transformer</span><span class="d">in progress</span></li><li><b>Target</b><span class="tl">property input</span><span class="d">bandgap 1.0 eV</span></li><li><b>Descriptor</b><span class="tl">diffusion</span><span class="d">property → MOF features</span></li><li><b>MOFid</b><span class="tl">transformer</span><span class="d">features → node and linkers</span></li><li><b>Build</b><span class="tl">structure</span><span class="d">MOFid → CIF</span></li><li><b>Validate</b><span class="tl">→ Phase 1</span><span class="d">same filters as database MOFs</span></li></ol></div></div>
+  </section>
+
+  <section id="methods">
+    <h2>Methods</h2>
+
+    <span class="label">A MOF works as a K⁺ anode only if it meets four conditions</span>
+    <div class="idea" style="margin-top:10px">
+      <div class="box"><h3>Geometric access</h3><p>K⁺ can enter and move through the pores.</p><div class="mono" style="margin-top:8px;font-size:.8125rem;color:var(--accent)">PLD · LCD</div></div>
+      <div class="box"><h3>Thermodynamic stability</h3><p>The framework stays intact in its bare form.</p><div class="mono" style="margin-top:8px;font-size:.8125rem;color:var(--accent)">E<sub>form</sub> · E<sub>hull</sub> · MSI</div></div>
+      <div class="box"><h3>Storage capacity</h3><p>Maximum charge held at full K⁺ loading.</p><div class="mono" style="margin-top:8px;font-size:.8125rem;color:var(--accent)">C<sub>theor</sub></div></div>
+      <div class="box"><h3>Kinetics and electrochemistry</h3><p>K⁺ moves easily during charge and discharge.</p><div class="mono" style="margin-top:8px;font-size:.8125rem;color:var(--accent)">E<sub>ads</sub> · MSD · E<sub>a</sub> · D · σ · OCV · ΔV · Bader</div></div>
+    </div>
+
+    <span class="label">Data · six public databases, ≈609k raw → ≈300k filtered</span>
+    <div class="metals" style="margin:10px 0 28px">
+      <span class="pill">Boyd-Woo</span><span class="pill">CoRE MOF DB</span><span class="pill">hMOF</span><span class="pill">CCDC MOF Subset</span><span class="pill">QMOF</span><span class="pill">ToBaCCo</span>
+    </div>
+    
+
+    <div class="mdets">
+<details class="mdet"><summary><b>ALIGNN</b><span class="tg">graph neural network</span></summary><ul><li>Builds a graph from atomic species, bond distances and coordination.</li><li>Predicts normalised formation energy.</li><li>Keeps MOFs with E<sub>form</sub> &lt; 0.</li></ul></details><details class="mdet"><summary><b>CHGNet</b><span class="tg">universal MLIP · binding and dynamics</span></summary><ul><li>Input: about 4,000 ALIGNN-filtered structures (QMOF subset plus generated MOFs), after checking that K⁺ can be inserted.</li><li>K-site search: tries several sites, relaxes only the K ion, and takes the global minimum E<sub>ads</sub>.</li><li>Staged MD at 300 K: 10 ps NVT (Berendsen), keep top 20%, then 50 ps NVT (Nosé–Hoover).</li><li>Ranking weights: adsorption 40%, MSI 35%, MSD 20%, confidence 5%.</li><li>Top candidates go to MACE.</li></ul></details><details class="mdet"><summary><b>MACE</b><span class="tg">equivariant MLIP · diffusion</span></summary><ul><li>CIFCleaner removes residual disorder and solvent artefacts.</li><li>BVSE or DistinctPathFinder finds the hop path; K is snapped onto MACE-relaxed sites.</li><li>7-image CI-NEB with FIRE gives the barrier E<sub>a</sub>.</li><li>D = D<sub>0</sub> exp(−E<sub>a</sub>/k<sub>B</sub>T) and σ = nz²e²D/k<sub>B</sub>T.</li><li>Bounds: E<sub>a</sub> ≤ 0.5 eV and σ ≥ 10⁻⁴ S/cm. Survivors go to DFT.</li></ul></details><details class="mdet"><summary><b>CP2K DFT</b><span class="tg">first-principles check</span></summary><ul><li>Quickstep (GPW) with a 400 Ry plane-wave cutoff and DZVP-MOLOPT basis sets.</li><li>Solver routing: OT + CG for gapped systems; Broyden + Fermi smearing for metallic or mixed-valence ones.</li><li>DFT+U on 3d metals (4.0 eV Fe, 6.4 eV Ni); switched off for 4d/5d dichalcogenides such as MoS₂.</li><li>CI-NEB on pre-relaxed endpoints for the K⁺ barrier.</li><li>Outputs: E<sub>hull</sub>, E<sub>ads</sub>, OCV, ΔV, DOS, Bader and Hirshfeld charges.</li></ul><div class="tablewrap" style="margin:4px 16px 16px"><table style="min-width:480px"><thead><tr><th>Test system</th><th>E<sub>ads</sub></th><th>Result</th></tr></thead><tbody>
+<tr><td class="p">MoS₂ (vacuum)</td><td class="v">−1.321 eV</td><td class="s">barrier 0.037 eV · OCV 1.3219 V · good</td></tr>
+<tr><td class="p">UiO-66 (Zr)</td><td class="v">−1.6097 eV</td><td class="s">moderate · kinetics queued</td></tr>
+<tr><td class="p">ZIF-8 (Zn)</td><td class="v">+0.61 eV</td><td class="s">unfavourable · rejected</td></tr></tbody></table></div>
+<div class="sub" style="margin:0 16px 14px">Pipeline test on three different archetypes.</div></details><details class="mdet"><summary><b>MOFDiff</b><span class="tg">coarse-grained diffusion</span></summary><ul><li>Each node and linker becomes one bead in a coarse graph, stored in LMDB.</li><li>A building-block encoder is trained, then a diffusion model on its embeddings.</li><li>Generation starts from noise, refined step by step into a bead arrangement.</li><li>Beads are rebuilt into atoms and output as a CIF, then relaxed and measured before Phase 1.</li></ul></details><details class="mdet"><summary><b>EGMOF</b><span class="tg">diffusion + transformer · property-conditioned</span></summary><ul><li>Two stages: a 1D diffusion model (Prop2Desc) turns target properties into descriptors.</li><li>A transformer (Desc2MOF) generates the MOF structure from those descriptors.</li><li>Stages are modular, so new target properties need little or no retraining.</li><li>Being retrained on our curated dataset. Outputs go through the same Phase 1 filters.</li></ul></details>    </div>
+  </section>
+
+  <section id="criteria">
+    <h2>Criteria</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Parameter</th><th>Range</th><th>Ideal</th><th>Stage</th></tr></thead>
+        <tbody>
+          <tr><td class="p">PLD</td><td class="v">2.66 – 15.0 Å</td><td class="i">4 – 8 Å</td><td class="s">Zeo++</td></tr>
+          <tr><td class="p">LCD</td><td class="v">2.66 – 20.0 Å</td><td class="i">8 – 12 Å</td><td class="s">Zeo++</td></tr>
+          <tr><td class="p">Formation energy</td><td class="v">&lt; 0 eV/atom</td><td class="i">lower</td><td class="s">ALIGNN</td></tr>
+          <tr><td class="p">Capacity</td><td class="v">&gt; 100 mAh/g</td><td class="i">&gt; 280 mAh/g</td><td class="s">Faraday</td></tr>
+          <tr><td class="p">Adsorption energy</td><td class="v">−2.5 – −0.5 eV</td><td class="i">mid-range</td><td class="s">CHGNet · DFT</td></tr>
+          <tr><td class="p">MSI</td><td class="v">&gt; 0.5 Å</td><td class="i">—</td><td class="s">CHGNet</td></tr>
+          <tr><td class="p">MSD</td><td class="v">&gt; 5.0 Å²</td><td class="i">via D</td><td class="s">CHGNet</td></tr>
+          <tr><td class="p">Diffusion barrier</td><td class="v">0 – 0.5 eV</td><td class="i">&lt; 0.3 eV</td><td class="s">MACE · DFT</td></tr>
+          <tr><td class="p">Diffusion coeff. D</td><td class="v">10⁻¹² – 10⁻⁹ cm²/s</td><td class="i">higher</td><td class="s">MACE</td></tr>
+          <tr><td class="p">Ionic conductivity σ</td><td class="v">≥ 10⁻⁴ S/cm</td><td class="i">higher</td><td class="s">MACE · DFT</td></tr>
+          <tr><td class="p">Energy above hull</td><td class="v">0 – 0.10 eV/atom</td><td class="i">0</td><td class="s">DFT</td></tr>
+          <tr><td class="p">OCV</td><td class="v">0 – 1.5 V</td><td class="i">0.2 – 0.8 V</td><td class="s">DFT</td></tr>
+          <tr><td class="p">Volume expansion</td><td class="v">0 – 20 %</td><td class="i">lower</td><td class="s">DFT</td></tr>
+          <tr><td class="p">DOS · Bader</td><td class="v">no cutoff</td><td class="i">small gap · K → host</td><td class="s">DFT</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="candidate">
+    <h2>Best generated candidate</h2>
+    <div class="cand">
+      <div class="id">
+        <div><span class="label">EGMOF output</span>
+        <div class="f">Zn₂H₁₈C₃₆SN₂O₁₀</div></div>
+        <dl>
+          <div><dt>CIF</dt><dd>fsc+N564+N85+E0+E163</dd></div>
+          <div><dt>Metal</dt><dd>Zn</dd></div>
+          <div><dt>Topology</dt><dd>fsc</dd></div>
+          <div><dt>Atoms</dt><dd>69</dd></div>
+          <div><dt>Molar mass</dt><dd>801.42 g/mol</dd></div>
+          <div><dt>Cell volume</dt><dd>1353.3 Å³</dd></div>
+        </dl>
+      </div>
+
+      <div>
+        <span class="label">Framework</span>
+        <div class="idea" style="margin:10px 0 24px">
+          <div class="box"><h3>Linker 1 · layer former</h3><p>Naphthalene-1,4,5,8-tetracarboxylate (NTC 4−)</p><div class="mono" style="margin-top:8px;font-size:.8125rem;color:var(--accent)">C₁₄H₄O₈ · 4 × COO⁻ · O-donor</div></div>
+          <div class="box"><h3>Linker 2 · pillar</h3><p>3,7-Di(pyridin-4-yl)dibenzothiophene 5,5-dioxide</p><div class="mono" style="margin-top:8px;font-size:.8125rem;color:var(--accent)">C₂₂H₁₄N₂O₂S · 2 × pyridyl N</div></div>
+          <div class="box"><h3>Zn₂ node</h3><p>Zn–Zn 2.99 Å. Each Zn: 4 carboxylate O + 1 pyridyl N.</p><div class="mono" style="margin-top:8px;font-size:.8125rem;color:var(--accent)">Zn–O 2.06–2.12 Å · Zn–N 2.04 Å</div></div>
+          <div class="box"><h3>Net</h3><p>Mixed-linker, pillared-layer Zn MOF. Two sulfone O atoms are free, not bonded to Zn.</p><div class="mono" style="margin-top:8px;font-size:.8125rem;color:var(--accent)">fsc topology</div></div>
+        </div>
+<div class="cg"><span class="label">Structure and stability</span><div class="checks"><div class="chk ok"><span class="k">PLD</span><span class="val">3.56 Å</span><span class="tag">pass</span></div><div class="chk ok"><span class="k">LCD</span><span class="val">5.79 Å</span><span class="tag">pass</span></div><div class="chk ok"><span class="k">E<sub>form</sub>, ALIGNN</span><span class="val">−0.187 eV/atom</span><span class="tag">pass</span></div><div class="chk ok"><span class="k">E<sub>form</sub>, DFT PBE+D3</span><span class="val">−0.321 eV/atom</span><span class="tag">pass</span></div><div class="chk pend"><span class="k">Energy above hull</span><span class="val">—</span><span class="tag">running</span></div></div></div><div class="cg"><span class="label">K adsorption</span><div class="checks"><div class="chk chk-warn"><span class="k">E<sub>ads</sub>, 1 K, CHGNet</span><span class="val">−2.69 eV</span><span class="tag">above range</span></div><div class="chk ok"><span class="k">E<sub>ads</sub>, 1 K, DFT CP2K</span><span class="val">−1.81 eV</span><span class="tag">upper bound</span></div><div class="chk ok"><span class="k">K–O distance</span><span class="val">2.70 Å</span><span class="tag">5-coordinate</span></div><div class="chk ok"><span class="k">Hirshfeld charge on K</span><span class="val">≈ +0.85 e</span><span class="tag">DFT</span></div><div class="chk pend"><span class="k">DOS · Bader</span><span class="val">—</span><span class="tag">running</span></div></div></div><div class="cg"><span class="label">Storage, CHGNet stepwise insertion</span><div class="checks"><div class="chk ok"><span class="k">Max K per cell</span><span class="val">8</span><span class="tag">stored</span></div><div class="chk ok"><span class="k">Capacity</span><span class="val">267.5 mAh/g</span><span class="tag">pass</span></div><div class="chk ok"><span class="k">E<sub>ads</sub>, 8 K avg</span><span class="val">−1.78 eV/K</span><span class="tag">pass</span></div><div class="chk chk-warn"><span class="k">Voltage (uncalibrated)</span><span class="val">1.77 V</span><span class="tag">recalibrate</span></div><div class="chk ok"><span class="k">Volume expansion, 8 K</span><span class="val">1.03 %</span><span class="tag">pass</span></div></div></div><div class="cg"><span class="label">K transport, MACE NEB</span><div class="checks"><div class="chk ok"><span class="k">Migration barrier</span><span class="val">0.149 eV</span><span class="tag">pass</span></div><div class="chk ok"><span class="k">Hop distance</span><span class="val">1.94 Å</span><span class="tag">path</span></div><div class="chk chk-warn"><span class="k">D</span><span class="val">3.07 × 10⁻⁶ cm²/s</span><span class="tag">estimate</span></div><div class="chk ok"><span class="k">Carrier concentration</span><span class="val">7.39 × 10²⁰ cm⁻³</span><span class="tag">input</span></div><div class="chk ok"><span class="k">Conductivity σ</span><span class="val">1.42 × 10⁻² S/cm</span><span class="tag">pass</span></div></div></div><div class="cg"><span class="label">Mechanical stability, empty / 8 K loaded</span><div class="checks"><div class="chk ok"><span class="k">Born stability</span><span class="val">Stable / Stable</span><span class="tag">pass</span></div><div class="chk ok"><span class="k">Min. eigenvalue</span><span class="val">16.1 / 18.8 GPa</span><span class="tag">pass</span></div><div class="chk ok"><span class="k">Bulk modulus</span><span class="val">52.8 / 56.3 GPa</span><span class="tag">pass</span></div><div class="chk ok"><span class="k">Shear modulus</span><span class="val">39.0 / 37.9 GPa</span><span class="tag">pass</span></div><div class="chk ok"><span class="k">Young’s modulus</span><span class="val">93.9 / 92.9 GPa</span><span class="tag">pass</span></div><div class="chk ok"><span class="k">Poisson’s ratio</span><span class="val">0.204 / 0.225</span><span class="tag">pass</span></div><div class="chk ok"><span class="k">Critical pressure</span><span class="val">&gt; 3 GPa</span><span class="tag">pass</span></div></div></div><div class="cg"><span class="label">Thermal stability, MD at 300 K, 10 ps, 8 K loaded</span><div class="checks"><div class="chk ok"><span class="k">Result</span><span class="val">Stable</span><span class="tag">pass</span></div><div class="chk ok"><span class="k">Framework RMSD</span><span class="val">0.50 Å</span><span class="tag">pass</span></div><div class="chk ok"><span class="k">Max atom displacement</span><span class="val">2.35 Å</span><span class="tag">pass</span></div><div class="chk ok"><span class="k">Bond preservation</span><span class="val">100 %</span><span class="tag">pass</span></div><div class="chk ok"><span class="k">Zn node coordination</span><span class="val">Kept, both nodes</span><span class="tag">pass</span></div><div class="chk ok"><span class="k">MSI</span><span class="val">0.786</span><span class="tag">pass</span></div><div class="chk chk-warn"><span class="k">K MSD, 10 ps</span><span class="val">0.71 Å²</span><span class="tag">short run</span></div></div></div>        <div class="legend">
+          <span><span class="chk ok" style="border:0;padding:0;background:none;display:inline"><span class="tag">pass</span></span> inside range</span>
+          <span><span class="chk chk-warn" style="border:0;padding:0;background:none;display:inline"><span class="tag">check</span></span> outside range or an estimate</span>
+          <span><span class="chk pend" style="border:0;padding:0;background:none;display:inline"><span class="tag">running</span></span> calculation in progress</span>
+        </div>
+        <p class="sub">Node metal is Zn, which does not take electrons. The 267.5 mAh/g assumes one electron per K, so DOS and Bader at 8 K decide whether it holds.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="generation">
+    <h2>Generation · 3 batches</h2>
+    <div class="bgrid"><div class="bcard"><div class="bh"><span class="label">Batch 1</span><h3>MOFDiff</h3><span class="bn">validated</span></div><div class="br"><span class="bl">Input</span><div class="bt"><i style="width:100.0%"></i><b>37</b></div></div><div class="br"><span class="bl">ALIGNN</span><div class="bt"><i style="width:73.0%"></i><b>27</b></div></div><div class="br"><span class="bl">CHGNet</span><div class="bt"><i style="width:62.2%"></i><b>23</b></div></div><div class="br"><span class="bl">MACE</span><div class="bt"><i style="width:37.8%"></i><b>14</b></div></div></div><div class="bcard"><div class="bh"><span class="label">Batch 2</span><h3>MOFDiff</h3><span class="bn">validated</span></div><div class="br"><span class="bl">Input</span><div class="bt"><i style="width:100.0%"></i><b>374</b></div></div><div class="br"><span class="bl">ALIGNN</span><div class="bt"><i style="width:57.0%"></i><b>213</b></div></div><div class="br"><span class="bl">CHGNet</span><div class="bt"><i style="width:34.2%"></i><b>128</b></div></div><div class="br"><span class="bl">MACE</span><div class="bt"><i style="width:17.6%"></i><b>66</b></div></div></div><div class="bcard"><div class="bh"><span class="label">Batch 3</span><h3>EGMOF</h3><span class="bn">validated · DFT running</span></div><div class="br"><span class="bl">Input</span><div class="bt"><i style="width:100.0%"></i><b>50</b></div></div><div class="br"><span class="bl">ALIGNN</span><div class="bt"><i style="width:36.0%"></i><b>18</b></div></div><div class="br"><span class="bl">CHGNet</span><div class="bt"><i style="width:18.0%"></i><b>9</b></div></div><div class="br"><span class="bl">MACE</span><div class="bt"><i style="width:10.0%"></i><b>5</b></div></div></div></div>
+  </section>
+
+  <section id="progress">
+    <h2>Progress</h2>
+    <div class="steps">
+      <div class="step"><span class="n" style="color:var(--ok)">DONE</span><h3>Validation</h3><div class="tool">Zeo++ · ALIGNN · CHGNet · MACE · DFT</div><div class="key">All modules functional<br>incl. DFT and MOFDiff<br>MOFDiff: 2 batches<br>EGMOF: 1 batch</div></div>
+      <div class="step"><span class="n" style="color:var(--warn)">IN PROGRESS</span><h3>EGMOF retraining</h3><div class="tool">diffusion + transformer</div><div class="key">retraining on our curated dataset</div></div>
+      <div class="step"><span class="n" style="color:var(--pend)">NEXT</span><h3>Redox retargeting</h3><div class="tool">after EGMOF</div><div class="key">V · Ni · Cr · Mn · Fe · Co · Ti nodes<br>base vs filtered test<br>re-run through Phase 1</div></div>
+    </div>
+  </section>
+
+  <section id="references">
+    <h2>References</h2>
+    <ol class="refs"><li><a href="https://pubs.acs.org/doi/10.1021/acs.jpcc.1c01657" target="_blank" rel="noopener">UiO-66 Metal–Organic Framework as an Anode for a Potassium-Ion Battery: Quantum Mechanical Analysis</a><span>J. Phys. Chem. C, 2021</span></li><li><a href="https://arxiv.org/abs/2302.14231" target="_blank" rel="noopener">CHGNet: Pretrained Universal Neural Network Potential for Charge-Informed Atomistic Modeling</a><span>Deng et al., arXiv, 2023</span></li><li><a href="https://doi.org/10.1002/er.8046" target="_blank" rel="noopener">Metal-organic frameworks as anode material in lithium-ion batteries</a><span>Kaur et al., Int. J. Energy Res., 2022</span></li><li><a href="https://arxiv.org/abs/2310.10732" target="_blank" rel="noopener">MOFDiff: Coarse-grained Diffusion for Metal-Organic Framework Design</a><span>Fu et al., arXiv, 2023</span></li><li><a href="https://pubs.aip.org/aip/jcp/article/159/4/044118/2904837" target="_blank" rel="noopener">Evaluation of the MACE Force Field Architecture</a><span>Kovács et al., J. Chem. Phys. 159, 044118, 2023</span></li><li><a href="https://pubs.acs.org/cgi/doi/10.1021/acs.cgd.9b01050" target="_blank" rel="noopener">Identification Schemes for Metal–Organic Frameworks (MOFid)</a><span>Bucior et al., Cryst. Growth Des. 19, 6682, 2019</span></li><li><a href="https://www.nature.com/articles/s41524-021-00650-1" target="_blank" rel="noopener">Atomistic Line Graph Neural Network (ALIGNN)</a><span>Choudhary and DeCost, npj Comput. Mater. 7, 185, 2021</span></li><li><a href="https://doi.org/10.1063/1.3382344" target="_blank" rel="noopener">A consistent and accurate ab initio parametrization of density functional dispersion correction (DFT-D)</a><span>Grimme et al., J. Chem. Phys. 132, 154104, 2010</span></li><li><a href="https://doi.org/10.1103/PhysRevLett.77.3865" target="_blank" rel="noopener">Generalized Gradient Approximation Made Simple</a><span>Perdew, Burke, Ernzerhof, Phys. Rev. Lett. 77, 3865, 1996</span></li><li><a href="https://arxiv.org/abs/2511.03122" target="_blank" rel="noopener">EGMOF: Efficient Generation of Metal-Organic Frameworks Using a Hybrid Diffusion-Transformer Architecture</a><span>Han et al., arXiv:2511.03122, 2025</span></li></ol>
+  </section>
+
+  <section id="team">
+    <h2>Team</h2>
+    <div class="team">
+      <div class="person"><b>Sarvanthikha SR</b><span>CB.SC.U4CSE23048</span></div>
+      <div class="person"><b>Sanjai P G</b><span>CB.SC.U4CSE23366</span></div>
+      <div class="person"><b>Sanjjiiev S</b><span>CB.SC.U4CSE23553</span></div>
+      <div class="person"><b>Eshanaa Ajith K</b><span>CB.SC.U4CSE23718</span></div>
+    </div>
+    <div class="guides">
+      <div><span>Guide</span> · Dr. Gowtham Ramesh, Associate Professor, ASC</div>
+      <div><span>Co-guides</span> · Dr. Dayanand V (ASC) · Dr. Ulaganathan M (ASPS) · Dr. Gangadharan D (ASPS)</div>
+    </div>
+  </section>
+
+</main>
+<div class="wrap"><footer>
+    <span>Computational Design and Generation of High-Performance MOF Anodes for K-Ion Batteries</span>
+    <span>Team 27 · 23CSE498 · Amrita Vishwa Vidyapeetham</span>
+  </footer></div>
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('nav a[href^="#"]:not(.brand)'));
+  var map={};links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a;});
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(e.isIntersecting){links.forEach(function(a){a.classList.remove('active');a.removeAttribute('aria-current');});
+          var a=map[e.target.id];if(a){a.classList.add('active');a.setAttribute('aria-current','true');
+            try{a.scrollIntoView({block:'nearest',inline:'nearest'});}catch(_){}}}
+      });
+    },{rootMargin:'-20% 0px -70% 0px'});
+    Object.keys(map).forEach(function(id){var s=document.getElementById(id);if(s)io.observe(s);});
+  }
+  // open all method details when printing
+  var opened=[];
+  window.addEventListener('beforeprint',function(){document.querySelectorAll('details:not([open])').forEach(function(d){d.open=true;opened.push(d);});});
+  window.addEventListener('afterprint',function(){opened.forEach(function(d){d.open=false;});opened=[];});
+  // keyboard access to scrollable tables
+  document.querySelectorAll('.tablewrap').forEach(function(t){t.tabIndex=0;t.setAttribute('role','region');t.setAttribute('aria-label','Scrollable table');});
+})();
+</script>
+</body>
+</html>
